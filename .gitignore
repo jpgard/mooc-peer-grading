@@ -1,3 +1,8 @@
+# ignore tar of docker image
+*.tar
+temp
+config.properties
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
