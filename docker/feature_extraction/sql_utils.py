@@ -72,7 +72,7 @@ def extract_coursera_sql_data(course, session):
         query = """SELECT * FROM {}""".format(tablename)
         outfile = tablename + ".csv"
         outfile_temp_fp = os.path.join(mysql_default_output_dir, outfile)
-        outfile_fp = os.path.join(course_session_dir, outfile)
+        outfile_fp = os.path.join("/output", outfile)
         execute_mysql_query_into_csv(query, file=outfile_temp_fp)
         shutil.move(outfile_temp_fp, outfile_fp)
     return
