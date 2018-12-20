@@ -6,7 +6,8 @@ import pandas as pd
 DATABASE_NAME = "course"
 
 
-def execute_mysql_query_into_csv(query, file, database_name=DATABASE_NAME, delimiter=",", escape_char="\\\\"):
+def execute_mysql_query_into_csv(query, file, database_name=DATABASE_NAME, delimiter=",", enclose_char='\\"',
+                                 escape_char="\\"):
     """
     Execute a mysql query into a file.
     :param query: valid mySQL query as string.
@@ -16,9 +17,10 @@ def execute_mysql_query_into_csv(query, file, database_name=DATABASE_NAME, delim
     :param escape_char: escape character to use.
     :return: None
     """
-    formatted_query = """{} INTO OUTFILE '{}' FIELDS TERMINATED BY '{}' ESCAPED_BY '{}';""".format(query, file,
-                                                                                                   delimiter,
-                                                                                                   escape_char)
+    formatted_query = """{} INTO OUTFILE '{}' FIELDS TERMINATED BY '{}'  ENCLOSED BY '{}' ESCAPED_BY '{}';""".format(
+        query, file,
+        delimiter, enclose_char,
+        escape_char)
     command = '''mysql -u root -proot {} -e"{}"'''.format(database_name, formatted_query)
     subprocess.call(command, shell=True)
     return
