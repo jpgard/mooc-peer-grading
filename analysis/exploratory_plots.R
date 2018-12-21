@@ -45,7 +45,7 @@ peer_evaluations %>%
 dplyr::filter(overall_evaluations, self_grade != "N") %>%
     ggplot(aes(x = peer_grade, y = self_grade, color = course)) + 
     geom_jitter(alpha = 0.3, size = rel(0.3)) + 
-    ggtitle("Peer Grades vs. Self Grades") + 
+    ggtitle("Correlation: Peer Grades vs. Self Grades") + 
     guides(color = F) + 
     facet_wrap(course ~ .) + 
     theme_bw()
