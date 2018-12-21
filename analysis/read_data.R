@@ -6,6 +6,8 @@ library(scales)
 # read in data
 data_dir = "/Users/joshgardner/Documents/Github/mooc-peer-grading/temp/extract"
 
+SUBMISSION_THRESHOLD = 50 # when plotting, only use assignments with at least this many submissions
+
 ## read in all data
 hg_data = list()
 course_sessions = list()
@@ -97,7 +99,7 @@ peer_evaluations %>%
     tally() %>% 
     ggplot(aes(x =n, fill = course)) + geom_density() + xlim(0,50) + guides(fill = FALSE) + ggtitle("Number of Peer Assessments Conducted Per User") + facet_wrap(course ~ .)
 
-# todo: peer grades vs. self grades
+# peer grades vs. self grades
 dplyr::filter(overall_evaluations, self_grade != "N") %>%
     ggplot(aes(x = peer_grade, y = self_grade, color = course)) + 
     geom_jitter(alpha = 0.3, size = rel(0.3)) + 
@@ -112,18 +114,20 @@ overall_evaluations %>%
     xlim(-5, 5) +
     facet_wrap(course ~ .)
 
-# todo: variance in peer grades by assignment
-
-submission_id_assessment_id = dplyr::select(submissions, c("id", "assessment_id")) %>% unique()
+# peer grades vs. staff grades (NOT: this is only available for one MOOC!)
+overall_evaluations[!is.na(overall_evaluations$staff_grade) & !(is.na(overall_evaluations$peer_grade)),] %>%
+    ggplot(aes(x = staff_grade, y = peer_grade, color = course_session)) + geom_jitter() + ggtitle("Staff Grades vs. Peer Grades (Note: Some Data May Be Staff-Generated")
 
 overall_evaluations %>%
-    # dplyr::inner_join(submission_id_assessment_id, by = c("submission_id" = "id")) %>%
-    group_by(course_session) %>%
+    dplyr::inner_join(submissions, by = c("submission_id" = "id", "course_session" = "course_session")) %>% # NOTE: submission and assessment IDs get reused across courses! so, need to join on course/session too
+    group_by(course_session, assessment_id) %>%
     summarise(peer_grade_variance = var(peer_grade, na.rm = TRUE), total.count = n()) %>% # this is variance of final "peer grade" by assignment
-    ggplot(aes(x=peer_grade_variance, y = 0, fill = peer_grade_variance, size = total.count, label = course_session)) + 
-    geom_point() + 
-    geom_text(size=2) +
-    ggtitle("Variance of Peer Grades")
+    dplyr::filter(total.count >= SUBMISSION_THRESHOLD) %>%
+    ggplot(aes(x=assessment_id, y = course_session, fill = log(peer_grade_variance), label = total.count)) + 
+    geom_tile() +
+    geom_text(size = rel(2)) +
+    scale_fill_gradient(low = "white", high = "black") +
+    ggtitle("Variance of Peer Grades By Assignment")
 
 
 
