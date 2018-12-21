@@ -28,6 +28,7 @@ for (course in list.dirs(data_dir, full.names = FALSE, recursive = FALSE)){
 
 ## concatenate individual tables across courses/sessions
 
+# wrangle peer evaluation data
 peer_evaluations = list()
 for (submission_table in names(hg_data)){
     # only take hg_assessment_evaluation_metadata tables
@@ -40,8 +41,38 @@ for (submission_table in names(hg_data)){
 }
 peer_evaluations %<>% dplyr::bind_rows(.id = "course_session") %>% tidyr::separate(col = "course_session", into = c("course", "session"), sep = "_", remove = FALSE)     
 
+# wrangle overall evaluation data
+overall_evaluations = list()
+for (submission_table in names(hg_data)){
+    # only take hg_assessment_evaluation_metadata tables
+    if (grepl("overall_evaluation_metadata", submission_table, fixed=TRUE)){
+        course = str_split(submission_table, pattern = "_", simplify = TRUE)[1]
+        session = str_split(submission_table, pattern = "_", simplify = TRUE)[2]
+        message(glue("adding overall evaluation metadata for course {course} session {session}"))
+        overall_evaluations[[paste(course, session, sep = "_")]] = hg_data[[submission_table]]
+    }
+}
+overall_evaluations %<>% 
+    dplyr::bind_rows(.id = "course_session") %>% 
+    tidyr::separate(col = "course_session", into = c("course", "session"), sep = "_", remove = FALSE) %>% 
+    dplyr::mutate_at(vars(grade:self_grade), as.numeric)    
 
+# wrangle assessment submission metadata
+submissions = list()
+for (submission_table in names(hg_data)){
+    # only take hg_assessment_evaluation_metadata tables
+    if (grepl("submission_metadata", submission_table, fixed=TRUE)){
+        course = str_split(submission_table, pattern = "_", simplify = TRUE)[1]
+        session = str_split(submission_table, pattern = "_", simplify = TRUE)[2]
+        message(glue("adding submission metadata for course {course} session {session}"))
+        df = hg_data[[submission_table]] %>% mutate(submit_time = as.character(submit_time)) # handle special case of submit time; inconsistent dtype
+        submissions[[paste(course, session, sep = "_")]] = df
+    }
+}
 
+submissions %<>% 
+    dplyr::bind_rows(.id = "course_session") %>% 
+    tidyr::separate(col = "course_session", into = c("course", "session"), sep = "_", remove = FALSE) 
 
 #todo: number of peer-graded assignment submissions in each course
 peer_evaluations %>%
@@ -66,7 +97,33 @@ peer_evaluations %>%
     tally() %>% 
     ggplot(aes(x =n, fill = course)) + geom_density() + xlim(0,50) + guides(fill = FALSE) + ggtitle("Number of Peer Assessments Conducted Per User") + facet_wrap(course ~ .)
 
-
-
 # todo: peer grades vs. self grades
+dplyr::filter(overall_evaluations, self_grade != "N") %>%
+    ggplot(aes(x = peer_grade, y = self_grade, color = course)) + 
+    geom_jitter(alpha = 0.3, size = rel(0.3)) + 
+    ggtitle("Peer Grades vs. Self Grades") + 
+    guides(color = F) + 
+    facet_wrap(course ~ .)
+
+overall_evaluations %>% 
+    ggplot(aes(x = self_grade - peer_grade)) + 
+    geom_density() +
+    ggtitle("Difference Between Self and Peer Grade") + 
+    xlim(-5, 5) +
+    facet_wrap(course ~ .)
+
+# todo: variance in peer grades by assignment
+
+submission_id_assessment_id = dplyr::select(submissions, c("id", "assessment_id")) %>% unique()
+
+overall_evaluations %>%
+    # dplyr::inner_join(submission_id_assessment_id, by = c("submission_id" = "id")) %>%
+    group_by(course_session) %>%
+    summarise(peer_grade_variance = var(peer_grade, na.rm = TRUE), total.count = n()) %>% # this is variance of final "peer grade" by assignment
+    ggplot(aes(x=peer_grade_variance, y = 0, fill = peer_grade_variance, size = total.count, label = course_session)) + 
+    geom_point() + 
+    geom_text(size=2) +
+    ggtitle("Variance of Peer Grades")
+
+
 
